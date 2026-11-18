@@ -16,6 +16,7 @@ def consultar(endpoint, tipo, dados):
             'tipo': tipo,
             'dados': dados,
             'timestamp': datetime.now(timezone.utc).isoformat(),
+            'relogio_logico': 1,
         }
         print(f'ENVIO {mensagem}', flush=True)
         socket.send(msgpack.packb(mensagem, use_bin_type=True))
@@ -26,7 +27,7 @@ def consultar(endpoint, tipo, dados):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('operacao', choices=['listar_canais', 'historico'])
+    parser.add_argument('operacao', choices=['listar_canais', 'historico', 'listar_servidores'])
     parser.add_argument('--canal', default='geral')
     parser.add_argument('--inicio', type=int, default=0)
     parser.add_argument('--endpoint', default=os.getenv('SERVER_ENDPOINT', 'tcp://broker:5555'))

@@ -1,6 +1,7 @@
 import os
 import time
 import random
+import threading
 from datetime import datetime, timezone
 
 import zmq
@@ -20,6 +21,26 @@ SUB_ENDPOINT = os.getenv(
     "tcp://pubsub-proxy:5558"
 )
 
+relogio_logico = 0
+lock_relogio = threading.Lock()
+
+def atualizar_relogio(relogio_recebido):
+    global relogio_logico
+
+    if isinstance(relogio_recebido, int) and relogio_recebido >= 0:
+        with lock_relogio:
+            relogio_logico = max(
+                relogio_logico,
+                relogio_recebido
+            )
+
+def incrementar_relogio():
+    global relogio_logico
+
+    with lock_relogio:
+        relogio_logico += 1
+        return relogio_logico
+
 def obter_timestamp():
     return (
         datetime.now(timezone.utc)
@@ -32,6 +53,7 @@ def criar_mensagem(tipo, dados):
         "tipo": tipo,
         "dados": dados,
         "timestamp": obter_timestamp(),
+        "relogio_logico": incrementar_relogio()
     }
 
 def enviar_requisicao(tipo, dados):
@@ -45,6 +67,7 @@ def enviar_requisicao(tipo, dados):
         try:
             pedido.send(msgpack.packb(requisicao, use_bin_type=True))
             resposta = msgpack.unpackb(pedido.recv(), raw=False)
+            atualizar_relogio(resposta.get('relogio_logico', 0))
             print(f'RECEBIMENTO {resposta}', flush=True)
             return resposta
         except zmq.Again:
@@ -56,6 +79,7 @@ def receber_mensagens(socket_sub, prazo):
             continue
         canal, bytes_recebidos = socket_sub.recv_multipart()
         publicacao = msgpack.unpackb(bytes_recebidos, raw=False)
+        atualizar_relogio(publicacao.get('relogio_logico', 0))
         print(f'PUB-SUB canal={canal.decode().rstrip(chr(0))} recebido_em={obter_timestamp()} conteudo={publicacao}', flush=True)
 
 def iniciar_bot():

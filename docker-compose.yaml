@@ -1,4 +1,4 @@
-name: sistemas-distribuidos-parte-2
+name: sistemas-distribuidos-parte-3
 services:
   broker:
     build: ./broker
@@ -6,6 +6,13 @@ services:
   pubsub-proxy:
     build: ./pubsub
     restart: unless-stopped
+  reference:
+    build: ./reference
+    restart: unless-stopped
+    environment:
+      REFERENCE_DB: /data/reference.db
+    volumes:
+    - reference_data:/data
   python-server-1:
     build: ./python
     restart: unless-stopped
@@ -17,12 +24,14 @@ services:
       SERVER_ENDPOINT: tcp://broker:5556
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
+      REFERENCE_ENDPOINT: tcp://reference:5560
       DB_PATH: /data/servidor.db
     volumes:
     - python_server_1_data:/data
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
   python-server-2:
     build: ./python
     restart: unless-stopped
@@ -34,12 +43,14 @@ services:
       SERVER_ENDPOINT: tcp://broker:5556
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
+      REFERENCE_ENDPOINT: tcp://reference:5560
       DB_PATH: /data/servidor.db
     volumes:
     - python_server_2_data:/data
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
   python-bot-1:
     build: ./python
     restart: unless-stopped
@@ -53,6 +64,7 @@ services:
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
     - python-server-1
     - python-server-2
   python-bot-2:
@@ -68,6 +80,7 @@ services:
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
     - python-server-1
     - python-server-2
   java-server-1:
@@ -83,12 +96,14 @@ services:
       SERVER_ENDPOINT: tcp://broker:5556
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
+      REFERENCE_ENDPOINT: tcp://reference:5560
       DB_PATH: /data/servidor.db
     volumes:
     - java_server_1_data:/data
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
   java-server-2:
     build: ./java
     restart: unless-stopped
@@ -102,12 +117,14 @@ services:
       SERVER_ENDPOINT: tcp://broker:5556
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
+      REFERENCE_ENDPOINT: tcp://reference:5560
       DB_PATH: /data/servidor.db
     volumes:
     - java_server_2_data:/data
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
   java-bot-1:
     build: ./java
     restart: unless-stopped
@@ -123,6 +140,7 @@ services:
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
     - java-server-1
     - java-server-2
   java-bot-2:
@@ -140,6 +158,7 @@ services:
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
     - java-server-1
     - java-server-2
   javascript-server-1:
@@ -153,12 +172,14 @@ services:
       SERVER_ENDPOINT: tcp://broker:5556
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
+      REFERENCE_ENDPOINT: tcp://reference:5560
       DB_PATH: /data/servidor.db
     volumes:
     - javascript_server_1_data:/data
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
   javascript-server-2:
     build: ./javascript
     restart: unless-stopped
@@ -170,12 +191,14 @@ services:
       SERVER_ENDPOINT: tcp://broker:5556
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
+      REFERENCE_ENDPOINT: tcp://reference:5560
       DB_PATH: /data/servidor.db
     volumes:
     - javascript_server_2_data:/data
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
   javascript-bot-1:
     build: ./javascript
     restart: unless-stopped
@@ -189,6 +212,7 @@ services:
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
     - javascript-server-1
     - javascript-server-2
   javascript-bot-2:
@@ -204,9 +228,11 @@ services:
     depends_on:
     - broker
     - pubsub-proxy
+    - reference
     - javascript-server-1
     - javascript-server-2
 volumes:
+  reference_data: {}
   python_server_1_data: {}
   python_server_2_data: {}
   java_server_1_data: {}

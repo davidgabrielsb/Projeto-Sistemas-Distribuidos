@@ -2,6 +2,9 @@ import zmq
 import msgpack
 import sqlite3
 import os
+import time
+import threading
+from referencia import Referencia
 from datetime import datetime, timezone
 
 SERVER_ENDPOINT = os.getenv("SERVER_ENDPOINT")
@@ -11,8 +14,35 @@ ENDERECO = os.getenv("SERVER_BIND", "tcp://*:5555")
 PASTA = os.path.dirname(os.path.abspath(__file__))
 BANCO = os.getenv("DB_PATH", os.path.join(PASTA, "servidor.db"))
 
+relogio_logico = 0
+lock_relogio = threading.RLock()
+diferenca_horario = 0.0
+
+def atualizar_relogio(relogio_recebido):
+    global relogio_logico
+
+    if isinstance(relogio_recebido, int) and relogio_recebido >= 0:
+        with lock_relogio:
+            relogio_logico = max(relogio_logico, relogio_recebido)
+
+def incrementar_relogio():
+    global relogio_logico
+    with lock_relogio:
+        relogio_logico += 1
+        return relogio_logico
+
 def obter_timestamp():
-    return datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+    horario = datetime.fromtimestamp(
+        datetime.now(timezone.utc).timestamp() + diferenca_horario,
+        timezone.utc
+    )
+    return horario.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+def metadados_envio():
+    return {
+        "timestamp": obter_timestamp(),
+        "relogio_logico": incrementar_relogio()
+    }
 
 def criar_banco():
     conexao = sqlite3.connect(BANCO)
@@ -199,7 +229,8 @@ def processar_mensagem(requisicao, socket_pub):
                 "Canal, usuario e mensagem sao obrigatorios"
             )
 
-        timestamp_publicacao = obter_timestamp()
+        metadados_publicacao = metadados_envio()
+        timestamp_publicacao = metadados_publicacao["timestamp"]
 
         publicacao = {
             "canal": canal,
@@ -208,6 +239,7 @@ def processar_mensagem(requisicao, socket_pub):
             "timestamp_envio": timestamp,
             "timestamp_publicacao": timestamp_publicacao,
             "timestamp": timestamp_publicacao,
+            "relogio_logico": metadados_publicacao["relogio_logico"]
         }
 
         try:
@@ -256,8 +288,15 @@ def processar_mensagem(requisicao, socket_pub):
 
     return resposta(tipo, "erro", "Operacao desconhecida")
 
+def ajustar_horario(delta):
+    global diferenca_horario
+    diferenca_horario += delta / 1000
+
 def iniciar_servidor():
     criar_banco()
+    referencia = Referencia(metadados_envio, atualizar_relogio, ajustar_horario,
+                      lambda: (time.time() + diferenca_horario) * 1000)
+    referencia.iniciar()
     with zmq.Context() as contexto:
         socket_rep = contexto.socket(zmq.REP)
         socket_pub = contexto.socket(zmq.PUB)
@@ -273,12 +312,15 @@ def iniciar_servidor():
                 bytes_recebidos = socket_rep.recv()
                 try:
                     requisicao = msgpack.unpackb(bytes_recebidos, raw=False)
+                    if isinstance(requisicao, dict):
+                        atualizar_relogio(requisicao.get('relogio_logico', 0))
                     print(f'RECEBIMENTO {requisicao}', flush=True)
+                    referencia.contar()
                     resultado = processar_mensagem(requisicao, socket_pub)
                 except Exception as erro:
                     print(f'Falha no processamento: {erro}', flush=True)
                     resultado = resposta('desconhecido', 'erro', 'Mensagem invalida')
-                resultado["timestamp"] = obter_timestamp()
+                resultado.update(metadados_envio())
                 print(f'ENVIO {resultado}', flush=True)
                 socket_rep.send(msgpack.packb(resultado, use_bin_type=True))
         finally:
