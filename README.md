@@ -1,9 +1,17 @@
-# Parte 1 — Login e canais
+# Projeto de Sistemas Distribuídos — Parte 2
 
-Login, criação e listagem de canais com persistência local. A pasta reúne o código acumulado até esta etapa e roda por conta própria.
+Nesta etapa, foi implementada a comunicação por publicação e assinatura (Pub/Sub).
 
-Com o Docker Desktop aberto, execute `docker compose up --build` nesta pasta. O Compose inicia dois servidores e dois bots por linguagem. Os bots começam sozinhos. Para parar, pressione Ctrl+C e execute `docker compose down`.
+Os servidores armazenam as mensagens no SQLite e publicam as mensagens nos canais. Os bots podem se inscrever nos canais e receber as mensagens publicadas.
 
-- [Como rodar e demonstrar](COMO_RODAR.md)
-- [Estrutura e funcionamento do código](EXPLICACAO.md)
-- [Testes realizados](TESTES.md)
+O proxy Pub/Sub utiliza ZeroMQ, com XSUB na porta 5557 e XPUB na porta 5558.
+
+## Execução
+
+Com o Docker Desktop aberto, execute:
+
+docker compose up --build
+
+Para encerrar:
+
+docker compose down

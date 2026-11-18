@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timezone
 
 SERVER_ENDPOINT = os.getenv("SERVER_ENDPOINT")
+PUB_ENDPOINT = os.getenv("PUB_ENDPOINT", "tcp://pubsub-proxy:5557")
 ENDERECO = os.getenv("SERVER_BIND", "tcp://*:5555")
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
@@ -34,6 +35,17 @@ def criar_banco():
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS mensagens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            canal TEXT NOT NULL,
+            usuario TEXT NOT NULL,
+            mensagem TEXT NOT NULL,
+            timestamp_envio TEXT NOT NULL,
+            timestamp_publicacao TEXT NOT NULL
+        )
+    """)
+
     conexao.commit()
     conexao.close()
 
@@ -48,7 +60,7 @@ def resposta(tipo, status, mensagem):
         "timestamp": obter_timestamp()
     }
 
-def processar_mensagem(requisicao):
+def processar_mensagem(requisicao, socket_pub):
 
     if not isinstance(requisicao, dict):
         return resposta(
@@ -69,6 +81,16 @@ def processar_mensagem(requisicao):
 
     conexao = sqlite3.connect(BANCO)
     cursor = conexao.cursor()
+
+    if tipo == "historico":
+        canal = dados.get('canal', '')
+        limite = max(1, min(100, int(dados.get('limite', 50))))
+        inicio = max(0, int(dados.get('inicio', 0)))
+        cursor.execute('SELECT canal,usuario,mensagem,timestamp_envio,timestamp_publicacao FROM mensagens WHERE canal=? ORDER BY timestamp_envio,id LIMIT ? OFFSET ?', (canal, limite, inicio))
+        campos = ['canal','usuario','mensagem','timestamp_envio','timestamp_publicacao']
+        mensagens = [dict(zip(campos, linha)) for linha in cursor.fetchall()]
+        conexao.close()
+        return dict(tipo=tipo, status='sucesso', dados={'mensagens': mensagens, 'inicio': inicio, 'limite': limite})
 
     if tipo == "login":
 
@@ -152,6 +174,84 @@ def processar_mensagem(requisicao):
             "timestamp": obter_timestamp()
         }
 
+    elif tipo == "publicar_mensagem":
+
+        canal = dados.get("canal", "")
+        usuario = dados.get("usuario", "")
+        conteudo = dados.get("mensagem", "")
+
+        if not all(
+            isinstance(valor, str)
+            for valor in (canal, usuario, conteudo)
+        ):
+            conexao.close()
+            return resposta(tipo, "erro", "Dados da mensagem invalidos")
+
+        canal = canal.strip()
+        usuario = usuario.strip()
+        conteudo = conteudo.strip()
+
+        if not canal or not usuario or not conteudo:
+            conexao.close()
+            return resposta(
+                tipo,
+                "erro",
+                "Canal, usuario e mensagem sao obrigatorios"
+            )
+
+        timestamp_publicacao = obter_timestamp()
+
+        publicacao = {
+            "canal": canal,
+            "usuario": usuario,
+            "mensagem": conteudo,
+            "timestamp_envio": timestamp,
+            "timestamp_publicacao": timestamp_publicacao,
+            "timestamp": timestamp_publicacao,
+        }
+
+        try:
+            cursor.execute("""
+                INSERT INTO mensagens (
+                    canal,
+                    usuario,
+                    mensagem,
+                    timestamp_envio,
+                    timestamp_publicacao
+                )
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                canal,
+                usuario,
+                conteudo,
+                timestamp,
+                timestamp_publicacao
+            ))
+
+            conexao.commit()
+
+            socket_pub.send_multipart([
+                (canal + "\0").encode("utf-8"),
+                msgpack.packb(publicacao, use_bin_type=True)
+            ])
+
+            conexao.close()
+
+            print("\n========== MENSAGEM PUBLICADA ==========")
+            print(publicacao, flush=True)
+
+            return {
+                "tipo": tipo,
+                "status": "sucesso",
+                "mensagem": "Mensagem publicada com sucesso",
+                "dados": {"canal": canal},
+                "timestamp": timestamp_publicacao
+            }
+
+        except Exception:
+            conexao.close()
+            raise
+
     conexao.close()
 
     return resposta(tipo, "erro", "Operacao desconhecida")
@@ -160,6 +260,8 @@ def iniciar_servidor():
     criar_banco()
     with zmq.Context() as contexto:
         socket_rep = contexto.socket(zmq.REP)
+        socket_pub = contexto.socket(zmq.PUB)
+        socket_pub.connect(PUB_ENDPOINT)
         if SERVER_ENDPOINT:
             socket_rep.connect(SERVER_ENDPOINT)
             if os.getenv("SERVER_BIND"):
@@ -172,7 +274,7 @@ def iniciar_servidor():
                 try:
                     requisicao = msgpack.unpackb(bytes_recebidos, raw=False)
                     print(f'RECEBIMENTO {requisicao}', flush=True)
-                    resultado = processar_mensagem(requisicao)
+                    resultado = processar_mensagem(requisicao, socket_pub)
                 except Exception as erro:
                     print(f'Falha no processamento: {erro}', flush=True)
                     resultado = resposta('desconhecido', 'erro', 'Mensagem invalida')
@@ -181,6 +283,7 @@ def iniciar_servidor():
                 socket_rep.send(msgpack.packb(resultado, use_bin_type=True))
         finally:
             socket_rep.close(0)
+            socket_pub.close(0)
 
 if __name__ == '__main__':
     iniciar_servidor()

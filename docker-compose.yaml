@@ -1,7 +1,10 @@
-name: sistemas-distribuidos-parte-1
+name: sistemas-distribuidos-parte-2
 services:
   broker:
     build: ./broker
+    restart: unless-stopped
+  pubsub-proxy:
+    build: ./pubsub
     restart: unless-stopped
   python-server-1:
     build: ./python
@@ -12,11 +15,14 @@ services:
     environment:
       SERVER_NAME: python-server-1
       SERVER_ENDPOINT: tcp://broker:5556
+      PUB_ENDPOINT: tcp://pubsub-proxy:5557
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
       DB_PATH: /data/servidor.db
     volumes:
     - python_server_1_data:/data
     depends_on:
     - broker
+    - pubsub-proxy
   python-server-2:
     build: ./python
     restart: unless-stopped
@@ -26,11 +32,14 @@ services:
     environment:
       SERVER_NAME: python-server-2
       SERVER_ENDPOINT: tcp://broker:5556
+      PUB_ENDPOINT: tcp://pubsub-proxy:5557
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
       DB_PATH: /data/servidor.db
     volumes:
     - python_server_2_data:/data
     depends_on:
     - broker
+    - pubsub-proxy
   python-bot-1:
     build: ./python
     restart: unless-stopped
@@ -40,8 +49,10 @@ services:
     environment:
       BOT_ID: python-1
       SERVER_ENDPOINT: tcp://broker:5555
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
     depends_on:
     - broker
+    - pubsub-proxy
     - python-server-1
     - python-server-2
   python-bot-2:
@@ -53,8 +64,10 @@ services:
     environment:
       BOT_ID: python-2
       SERVER_ENDPOINT: tcp://broker:5555
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
     depends_on:
     - broker
+    - pubsub-proxy
     - python-server-1
     - python-server-2
   java-server-1:
@@ -68,11 +81,14 @@ services:
     environment:
       SERVER_NAME: java-server-1
       SERVER_ENDPOINT: tcp://broker:5556
+      PUB_ENDPOINT: tcp://pubsub-proxy:5557
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
       DB_PATH: /data/servidor.db
     volumes:
     - java_server_1_data:/data
     depends_on:
     - broker
+    - pubsub-proxy
   java-server-2:
     build: ./java
     restart: unless-stopped
@@ -84,11 +100,14 @@ services:
     environment:
       SERVER_NAME: java-server-2
       SERVER_ENDPOINT: tcp://broker:5556
+      PUB_ENDPOINT: tcp://pubsub-proxy:5557
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
       DB_PATH: /data/servidor.db
     volumes:
     - java_server_2_data:/data
     depends_on:
     - broker
+    - pubsub-proxy
   java-bot-1:
     build: ./java
     restart: unless-stopped
@@ -100,8 +119,10 @@ services:
     environment:
       BOT_ID: java-1
       SERVER_ENDPOINT: tcp://broker:5555
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
     depends_on:
     - broker
+    - pubsub-proxy
     - java-server-1
     - java-server-2
   java-bot-2:
@@ -115,8 +136,10 @@ services:
     environment:
       BOT_ID: java-2
       SERVER_ENDPOINT: tcp://broker:5555
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
     depends_on:
     - broker
+    - pubsub-proxy
     - java-server-1
     - java-server-2
   javascript-server-1:
@@ -128,11 +151,14 @@ services:
     environment:
       SERVER_NAME: javascript-server-1
       SERVER_ENDPOINT: tcp://broker:5556
+      PUB_ENDPOINT: tcp://pubsub-proxy:5557
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
       DB_PATH: /data/servidor.db
     volumes:
     - javascript_server_1_data:/data
     depends_on:
     - broker
+    - pubsub-proxy
   javascript-server-2:
     build: ./javascript
     restart: unless-stopped
@@ -142,11 +168,14 @@ services:
     environment:
       SERVER_NAME: javascript-server-2
       SERVER_ENDPOINT: tcp://broker:5556
+      PUB_ENDPOINT: tcp://pubsub-proxy:5557
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
       DB_PATH: /data/servidor.db
     volumes:
     - javascript_server_2_data:/data
     depends_on:
     - broker
+    - pubsub-proxy
   javascript-bot-1:
     build: ./javascript
     restart: unless-stopped
@@ -156,8 +185,10 @@ services:
     environment:
       BOT_ID: javascript-1
       SERVER_ENDPOINT: tcp://broker:5555
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
     depends_on:
     - broker
+    - pubsub-proxy
     - javascript-server-1
     - javascript-server-2
   javascript-bot-2:
@@ -169,8 +200,10 @@ services:
     environment:
       BOT_ID: javascript-2
       SERVER_ENDPOINT: tcp://broker:5555
+      SUB_ENDPOINT: tcp://pubsub-proxy:5558
     depends_on:
     - broker
+    - pubsub-proxy
     - javascript-server-1
     - javascript-server-2
 volumes:
