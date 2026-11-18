@@ -1,12 +1,16 @@
+import json
 import os
+import sqlite3
 import threading
 import time
+from pathlib import Path
 
 import msgpack
 import zmq
 
 class Cluster:
-    def __init__(self, metadados, receber, ajustar, horario):
+    def __init__(self, banco, metadados, receber, ajustar, horario):
+        self.banco = banco
         self.metadados = metadados
         self.receber = receber
         self.ajustar = ajustar
@@ -20,6 +24,15 @@ class Cluster:
         self.trocadas = 0
         self.heartbeat_pendente = threading.Event()
         self.sincronizacao_pendente = threading.Event()
+        self.cursores = {}
+        with self.conectar() as db:
+            db.executescript(Path(__file__).with_name('replicacao.sql').read_text())
+
+    def conectar(self):
+        db = sqlite3.connect(self.banco, timeout=10)
+        db.row_factory = sqlite3.Row
+        return db
+
     def mensagem(self, tipo, dados):
         return dict(tipo=tipo, dados=dados, **self.metadados())
 
@@ -50,7 +63,31 @@ class Cluster:
         if tipo == 'sincronizar':
             self.sincronizacao_pendente.set()
             return {'agendado': True}
+        if tipo == 'eventos':
+            with self.conectar() as db:
+                eventos = [dict(row) for row in db.execute(
+                    'SELECT * FROM eventos WHERE seq > ? ORDER BY seq LIMIT 100',
+                    (int(dados.get('apos', 0)),))]
+            return {'eventos': eventos}
         raise ValueError('Operacao de servidor desconhecida')
+
+    def importar(self, eventos):
+        with self.conectar() as db:
+            for evento in eventos:
+                tabela = evento['tabela']
+                campos = CAMPOS[tabela]
+                valores = json.loads(evento['dados'])
+                novo = db.execute('INSERT OR IGNORE INTO eventos(id,tabela,dados) VALUES(?,?,?)',
+                                  (evento['id'], tabela, evento['dados'])).rowcount
+                if not novo:
+                    continue
+                nomes = campos + ['evento_id']
+                sql = f"INSERT INTO {tabela} ({','.join(nomes)}) VALUES ({','.join('?' for _ in nomes)})"
+                if tabela == 'canais':
+                    sql += (' ON CONFLICT(nome) DO UPDATE SET usuario=excluded.usuario, '
+                            'timestamp=excluded.timestamp, evento_id=excluded.evento_id '
+                            'WHERE excluded.evento_id < canais.evento_id')
+                db.execute(sql, [valores[c] for c in campos] + [evento['id']])
 
     def servir(self):
         with zmq.Context.instance().socket(zmq.REP) as socket:
@@ -113,7 +150,7 @@ class Cluster:
     def manter(self):
         with zmq.Context.instance().socket(zmq.PUB) as publicador:
             publicador.connect(os.getenv('PUB_ENDPOINT', 'tcp://pubsub-proxy:5557'))
-            ultimo_heartbeat = ultima_eleicao = 0.0
+            ultimo_heartbeat = ultima_eleicao = ultima_replica = 0.0
             vivos = []
             while True:
                 try:
@@ -156,6 +193,19 @@ class Cluster:
                             lider = next((s for s in vivos if s['nome'] == self.coordenador), None)
                             if lider:
                                 self.consultar(lider['endpoint'], 'sincronizar', {})
+                    if agora - ultima_replica > 2:
+                        for servidor in vivos:
+                            if servidor['nome'] == self.nome:
+                                continue
+                            endpoint = servidor['endpoint']
+                            try:
+                                eventos = self.consultar(endpoint, 'eventos', {'apos': self.cursores.get(endpoint, 0)})['eventos']
+                                self.importar(eventos)
+                                if eventos:
+                                    self.cursores[endpoint] = eventos[-1]['seq']
+                            except (zmq.ZMQError, KeyError):
+                                continue
+                        ultima_replica = agora
                 except Exception as erro:
                     print(f'[{self.nome}] Manutencao: {erro}', flush=True)
                 time.sleep(0.1)
@@ -163,3 +213,10 @@ class Cluster:
     def iniciar(self):
         for tarefa in (self.servir, self.manter, self.observar):
             threading.Thread(target=tarefa, daemon=True).start()
+
+
+CAMPOS = {
+    'logins': ['usuario', 'timestamp'],
+    'canais': ['nome', 'usuario', 'timestamp'],
+    'mensagens': ['canal', 'usuario', 'mensagem', 'timestamp_envio', 'timestamp_publicacao'],
+}

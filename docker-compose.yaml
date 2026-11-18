@@ -1,4 +1,4 @@
-name: sistemas-distribuidos-parte-4
+name: sistemas-distribuidos-parte-5
 services:
   broker:
     build: ./broker

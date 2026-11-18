@@ -51,6 +51,7 @@ def criar_banco():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS logins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            evento_id TEXT UNIQUE,
             usuario TEXT NOT NULL,
             timestamp TEXT NOT NULL
         )
@@ -59,6 +60,7 @@ def criar_banco():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS canais (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            evento_id TEXT UNIQUE,
             nome TEXT NOT NULL UNIQUE,
             usuario TEXT NOT NULL,
             timestamp TEXT NOT NULL
@@ -68,6 +70,7 @@ def criar_banco():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS mensagens (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            evento_id TEXT UNIQUE,
             canal TEXT NOT NULL,
             usuario TEXT NOT NULL,
             mensagem TEXT NOT NULL,
@@ -116,8 +119,8 @@ def processar_mensagem(requisicao, socket_pub):
         canal = dados.get('canal', '')
         limite = max(1, min(100, int(dados.get('limite', 50))))
         inicio = max(0, int(dados.get('inicio', 0)))
-        cursor.execute('SELECT canal,usuario,mensagem,timestamp_envio,timestamp_publicacao FROM mensagens WHERE canal=? ORDER BY timestamp_envio,id LIMIT ? OFFSET ?', (canal, limite, inicio))
-        campos = ['canal','usuario','mensagem','timestamp_envio','timestamp_publicacao']
+        cursor.execute('SELECT canal,usuario,mensagem,timestamp_envio,timestamp_publicacao,evento_id FROM mensagens WHERE canal=? ORDER BY timestamp_envio,evento_id LIMIT ? OFFSET ?', (canal, limite, inicio))
+        campos = ['canal','usuario','mensagem','timestamp_envio','timestamp_publicacao','evento_id']
         mensagens = [dict(zip(campos, linha)) for linha in cursor.fetchall()]
         conexao.close()
         return dict(tipo=tipo, status='sucesso', dados={'mensagens': mensagens, 'inicio': inicio, 'limite': limite})
@@ -294,7 +297,7 @@ def ajustar_horario(delta):
 
 def iniciar_servidor():
     criar_banco()
-    cluster = Cluster(metadados_envio, atualizar_relogio, ajustar_horario,
+    cluster = Cluster(BANCO, metadados_envio, atualizar_relogio, ajustar_horario,
                       lambda: (time.time() + diferenca_horario) * 1000)
     cluster.iniciar()
     with zmq.Context() as contexto:
