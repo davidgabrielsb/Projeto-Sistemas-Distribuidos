@@ -4,7 +4,7 @@ import sqlite3
 import os
 import time
 import threading
-from referencia import Referencia
+from cluster import Cluster
 from datetime import datetime, timezone
 
 SERVER_ENDPOINT = os.getenv("SERVER_ENDPOINT")
@@ -294,9 +294,9 @@ def ajustar_horario(delta):
 
 def iniciar_servidor():
     criar_banco()
-    referencia = Referencia(metadados_envio, atualizar_relogio, ajustar_horario,
+    cluster = Cluster(metadados_envio, atualizar_relogio, ajustar_horario,
                       lambda: (time.time() + diferenca_horario) * 1000)
-    referencia.iniciar()
+    cluster.iniciar()
     with zmq.Context() as contexto:
         socket_rep = contexto.socket(zmq.REP)
         socket_pub = contexto.socket(zmq.PUB)
@@ -315,7 +315,7 @@ def iniciar_servidor():
                     if isinstance(requisicao, dict):
                         atualizar_relogio(requisicao.get('relogio_logico', 0))
                     print(f'RECEBIMENTO {requisicao}', flush=True)
-                    referencia.contar()
+                    cluster.contar()
                     resultado = processar_mensagem(requisicao, socket_pub)
                 except Exception as erro:
                     print(f'Falha no processamento: {erro}', flush=True)
@@ -323,6 +323,7 @@ def iniciar_servidor():
                 resultado.update(metadados_envio())
                 print(f'ENVIO {resultado}', flush=True)
                 socket_rep.send(msgpack.packb(resultado, use_bin_type=True))
+                cluster.contar_troca()
         finally:
             socket_rep.close(0)
             socket_pub.close(0)

@@ -1,4 +1,4 @@
-name: sistemas-distribuidos-parte-3
+name: sistemas-distribuidos-parte-4
 services:
   broker:
     build: ./broker
@@ -25,6 +25,7 @@ services:
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
       REFERENCE_ENDPOINT: tcp://reference:5560
+      PEER_ENDPOINT: tcp://python-server-1:5570
       DB_PATH: /data/servidor.db
     volumes:
     - python_server_1_data:/data
@@ -44,6 +45,7 @@ services:
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
       REFERENCE_ENDPOINT: tcp://reference:5560
+      PEER_ENDPOINT: tcp://python-server-2:5570
       DB_PATH: /data/servidor.db
     volumes:
     - python_server_2_data:/data
@@ -97,6 +99,7 @@ services:
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
       REFERENCE_ENDPOINT: tcp://reference:5560
+      PEER_ENDPOINT: tcp://java-server-1:5570
       DB_PATH: /data/servidor.db
     volumes:
     - java_server_1_data:/data
@@ -118,6 +121,7 @@ services:
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
       REFERENCE_ENDPOINT: tcp://reference:5560
+      PEER_ENDPOINT: tcp://java-server-2:5570
       DB_PATH: /data/servidor.db
     volumes:
     - java_server_2_data:/data
@@ -173,6 +177,7 @@ services:
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
       REFERENCE_ENDPOINT: tcp://reference:5560
+      PEER_ENDPOINT: tcp://javascript-server-1:5570
       DB_PATH: /data/servidor.db
     volumes:
     - javascript_server_1_data:/data
@@ -192,6 +197,7 @@ services:
       PUB_ENDPOINT: tcp://pubsub-proxy:5557
       SUB_ENDPOINT: tcp://pubsub-proxy:5558
       REFERENCE_ENDPOINT: tcp://reference:5560
+      PEER_ENDPOINT: tcp://javascript-server-2:5570
       DB_PATH: /data/servidor.db
     volumes:
     - javascript_server_2_data:/data

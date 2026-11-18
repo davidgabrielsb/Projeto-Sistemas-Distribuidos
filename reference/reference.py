@@ -26,13 +26,13 @@ def processar(requisicao, db):
     if not isinstance(dados, dict):
         raise ValueError('Dados invalidos')
     if tipo == 'registrar_servidor':
-        nome = dados.get('nome')
-        if not isinstance(nome, str) or not nome.strip():
-            raise ValueError('Nome invalido')
+        nome, endpoint = dados.get('nome'), dados.get('endpoint')
+        if not isinstance(nome, str) or not nome.strip() or not isinstance(endpoint, str) or not endpoint.startswith('tcp://'):
+            raise ValueError('Nome ou endereco invalido')
         db.execute('INSERT OR IGNORE INTO ranks(nome) VALUES(?)', (nome,))
         db.commit()
         rank = db.execute('SELECT rank FROM ranks WHERE nome=?', (nome,)).fetchone()[0]
-        servidores[nome] = dict(nome=nome, rank=rank, ultimo_heartbeat=time.monotonic())
+        servidores[nome] = dict(nome=nome, rank=rank, endpoint=endpoint, ultimo_heartbeat=time.monotonic())
         return {'nome': nome, 'rank': rank}
     if tipo == 'listar_servidores':
         return {'servidores': [{k: v for k, v in servidor.items() if k != 'ultimo_heartbeat'} for servidor in servidores.values()]}
@@ -41,7 +41,7 @@ def processar(requisicao, db):
         if not servidor or servidor['rank'] != dados.get('rank'):
             return {'registrar': True}
         servidor['ultimo_heartbeat'] = time.monotonic()
-        return {'hora': time.time() * 1000}
+        return {'ativo': True}
     raise ValueError('Operacao desconhecida')
 
 def iniciar():
