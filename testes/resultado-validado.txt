@@ -1,0 +1,3 @@
+PASSOU: 6 servidores nas 3 linguagens; login, canais, validacao e publicacao conforme a etapa.
+PASSOU: 6 bots ativos pelo broker.
+TODOS OS TESTES PASSARAM

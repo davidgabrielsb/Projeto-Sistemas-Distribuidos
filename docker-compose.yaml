@@ -1,0 +1,182 @@
+name: sistemas-distribuidos-parte-1
+services:
+  broker:
+    build: ./broker
+    restart: unless-stopped
+  python-server-1:
+    build: ./python
+    restart: unless-stopped
+    command:
+    - python
+    - servidor.py
+    environment:
+      SERVER_NAME: python-server-1
+      SERVER_ENDPOINT: tcp://broker:5556
+      DB_PATH: /data/servidor.db
+    volumes:
+    - python_server_1_data:/data
+    depends_on:
+    - broker
+  python-server-2:
+    build: ./python
+    restart: unless-stopped
+    command:
+    - python
+    - servidor.py
+    environment:
+      SERVER_NAME: python-server-2
+      SERVER_ENDPOINT: tcp://broker:5556
+      DB_PATH: /data/servidor.db
+    volumes:
+    - python_server_2_data:/data
+    depends_on:
+    - broker
+  python-bot-1:
+    build: ./python
+    restart: unless-stopped
+    command:
+    - python
+    - bot.py
+    environment:
+      BOT_ID: python-1
+      SERVER_ENDPOINT: tcp://broker:5555
+    depends_on:
+    - broker
+    - python-server-1
+    - python-server-2
+  python-bot-2:
+    build: ./python
+    restart: unless-stopped
+    command:
+    - python
+    - bot.py
+    environment:
+      BOT_ID: python-2
+      SERVER_ENDPOINT: tcp://broker:5555
+    depends_on:
+    - broker
+    - python-server-1
+    - python-server-2
+  java-server-1:
+    build: ./java
+    restart: unless-stopped
+    command:
+    - java
+    - -cp
+    - classes:lib/*
+    - com.sistemasdistribuidos.servidor.Servidor
+    environment:
+      SERVER_NAME: java-server-1
+      SERVER_ENDPOINT: tcp://broker:5556
+      DB_PATH: /data/servidor.db
+    volumes:
+    - java_server_1_data:/data
+    depends_on:
+    - broker
+  java-server-2:
+    build: ./java
+    restart: unless-stopped
+    command:
+    - java
+    - -cp
+    - classes:lib/*
+    - com.sistemasdistribuidos.servidor.Servidor
+    environment:
+      SERVER_NAME: java-server-2
+      SERVER_ENDPOINT: tcp://broker:5556
+      DB_PATH: /data/servidor.db
+    volumes:
+    - java_server_2_data:/data
+    depends_on:
+    - broker
+  java-bot-1:
+    build: ./java
+    restart: unless-stopped
+    command:
+    - java
+    - -cp
+    - classes:lib/*
+    - com.sistemasdistribuidos.cliente.Bot
+    environment:
+      BOT_ID: java-1
+      SERVER_ENDPOINT: tcp://broker:5555
+    depends_on:
+    - broker
+    - java-server-1
+    - java-server-2
+  java-bot-2:
+    build: ./java
+    restart: unless-stopped
+    command:
+    - java
+    - -cp
+    - classes:lib/*
+    - com.sistemasdistribuidos.cliente.Bot
+    environment:
+      BOT_ID: java-2
+      SERVER_ENDPOINT: tcp://broker:5555
+    depends_on:
+    - broker
+    - java-server-1
+    - java-server-2
+  javascript-server-1:
+    build: ./javascript
+    restart: unless-stopped
+    command:
+    - node
+    - servidor.js
+    environment:
+      SERVER_NAME: javascript-server-1
+      SERVER_ENDPOINT: tcp://broker:5556
+      DB_PATH: /data/servidor.db
+    volumes:
+    - javascript_server_1_data:/data
+    depends_on:
+    - broker
+  javascript-server-2:
+    build: ./javascript
+    restart: unless-stopped
+    command:
+    - node
+    - servidor.js
+    environment:
+      SERVER_NAME: javascript-server-2
+      SERVER_ENDPOINT: tcp://broker:5556
+      DB_PATH: /data/servidor.db
+    volumes:
+    - javascript_server_2_data:/data
+    depends_on:
+    - broker
+  javascript-bot-1:
+    build: ./javascript
+    restart: unless-stopped
+    command:
+    - node
+    - bot.js
+    environment:
+      BOT_ID: javascript-1
+      SERVER_ENDPOINT: tcp://broker:5555
+    depends_on:
+    - broker
+    - javascript-server-1
+    - javascript-server-2
+  javascript-bot-2:
+    build: ./javascript
+    restart: unless-stopped
+    command:
+    - node
+    - bot.js
+    environment:
+      BOT_ID: javascript-2
+      SERVER_ENDPOINT: tcp://broker:5555
+    depends_on:
+    - broker
+    - javascript-server-1
+    - javascript-server-2
+volumes:
+  python_server_1_data: {}
+  python_server_2_data: {}
+  java_server_1_data: {}
+  java_server_2_data: {}
+  javascript_server_1_data: {}
+  javascript_server_2_data: {}
