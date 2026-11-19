@@ -4,10 +4,6 @@ Os servidores trocam lotes de eventos para recuperar dados e convergir. A pasta 
 
 Com o Docker Desktop aberto, execute `docker compose up --build` nesta pasta. O Compose inicia dois servidores e dois bots por linguagem. Os bots começam sozinhos. Para parar, pressione Ctrl+C e execute `docker compose down`.
 
-- [Como rodar e demonstrar](COMO_RODAR.md)
-- [Estrutura e funcionamento do código](EXPLICACAO.md)
-- [Testes realizados](TESTES.md)
-
 ## Método de replicação
 
 Usamos replicação por pull com consistência eventual. Cada servidor grava e confirma a operação no SQLite local. Em segundo plano, os servidores pedem uns aos outros lotes de eventos, aplicam os eventos ainda desconhecidos e ficam disponíveis para retransmiti-los a outros pares. Assim, um servidor que volta do ar ou começa vazio recupera o histórico disponível nas outras bases.
