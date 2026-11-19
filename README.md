@@ -4,6 +4,3 @@ As mensagens ganham contador lógico. Os servidores registram rank e consultam a
 
 Com o Docker Desktop aberto, execute `docker compose up --build` nesta pasta. O Compose inicia dois servidores e dois bots por linguagem. Os bots começam sozinhos. Para parar, pressione Ctrl+C e execute `docker compose down`.
 
-- [Como rodar e demonstrar](COMO_RODAR.md)
-- [Estrutura e funcionamento do código](EXPLICACAO.md)
-- [Testes realizados](TESTES.md)
